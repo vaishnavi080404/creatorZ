@@ -109,14 +109,18 @@ export default function UnifiedLoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await signInWithGoogle("creator", {
-        name: "Creative Partner (Google)",
+      const targetRole = detectedPreview?.role || (email ? detectRole(email) : "auto");
+      const res = await signInWithGoogle(targetRole, {
+        email: email || undefined,
+        name: email ? email.split("@")[0] : undefined,
       });
       if (res?.redirecting) {
         return;
       }
       if (res?.role === "brand") {
-        router.push("/brand/dashboard");
+        router.push(res.user?.onboarding_completed === false ? "/onboarding/brand" : "/brand/dashboard");
+      } else if (res?.role === "admin") {
+        router.push("/admin/dashboard");
       } else {
         router.push("/creator/dashboard");
       }

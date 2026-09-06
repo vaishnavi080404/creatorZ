@@ -1,8 +1,33 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { MOCK_CREATORS, MOCK_OPEN_BRIEFS, MOCK_ORDER_ROOM } from "@/lib/mockData";
-import { Video, Award, ArrowRight } from "lucide-react";
+import { Video, Award, ArrowRight, Loader2 } from "lucide-react";
+
 export default function CreatorDashboardPage() {
+    const router = useRouter();
+    const { user, isLoading, isAuthenticated } = useAuth();
+
+    // Guard: Route brands to Brand Workspace immediately
+    useEffect(() => {
+      if (!isLoading && user?.role === "brand") {
+        router.replace(user.onboarding_completed === false ? "/onboarding/brand" : "/brand/dashboard");
+      }
+    }, [user, isLoading, router]);
+
+    if (!isLoading && user?.role === "brand") {
+      return (
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-[#7A1C28]" />
+            <p className="text-xs font-mono text-[#82575c]">Redirecting to Brand Workspace...</p>
+          </div>
+        </div>
+      );
+    }
+
     const creator = MOCK_CREATORS[0]; // Alex Kumar
     return (<div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       

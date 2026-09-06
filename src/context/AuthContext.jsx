@@ -221,61 +221,131 @@ export function AuthProvider({ children }) {
 
       // 3. Supabase Session Sync (if live Supabase is active)
       if (isSupabaseConfigured() && supabase) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user && !storedSession) {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+          if (session?.user) {
             const email = session.user.email?.toLowerCase().trim();
-            const matched = activeUsers.find(
-              (u) => (u.email || "").toLowerCase().trim() === email
-            );
-            if (matched) {
-              setUser(matched);
-              localStorage.setItem("creatorz_auth_session", JSON.stringify(matched));
-              syncAuthCookies(matched);
-            } else {
-              const detectedRole = session.user.user_metadata?.role || "brand";
-              const isBrand = detectedRole === "brand";
+            try {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("email", email)
+                .maybeSingle();
+
+              let brandProfile = null;
+              if (profile?.role === "brand") {
+                const { data: bp } = await supabase
+                  .from("brand_profiles")
+                  .select("*")
+                  .eq("user_id", profile.id)
+                  .maybeSingle();
+                brandProfile = bp;
+              }
+
+              const resolvedRole = profile?.role || session.user.user_metadata?.role || detectRoleFromEmail(email, activeUsers);
+              const isBrand = resolvedRole === "brand";
               const name =
+                profile?.name ||
                 session.user.user_metadata?.full_name ||
                 session.user.user_metadata?.name ||
                 (isBrand ? "Brand Partner" : "Creative Partner");
-              const initials = name
+
+              const company = brandProfile?.company_name || "";
+              const verified = Boolean(brandProfile?.verified);
+              const initials = (company || name)
                 .split(" ")
                 .map((n) => n[0])
                 .join("")
                 .slice(0, 2)
                 .toUpperCase();
 
-              const newUser = {
-                id: session.user.id,
-                email: session.user.email,
+              const fullUser = {
+                id: profile?.id || session.user.id,
+                email: email,
                 name: name,
-                role: detectedRole,
+                role: resolvedRole,
                 initials: initials || (isBrand ? "BR" : "CR"),
-                avatar: session.user.user_metadata?.avatar_url || null,
-                onboarding_completed: !isBrand,
-                is_verified: false,
+                avatar: profile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                company: company,
+                companyName: company,
+                category: brandProfile?.category || "D2C Brand",
+                website: brandProfile?.website || "",
+                gstin: brandProfile?.gstin || "",
+                onboarding_completed: isBrand ? Boolean(company) : true,
+                is_verified: verified,
+                verified: verified,
               };
-              setUser(newUser);
-              localStorage.setItem("creatorz_auth_session", JSON.stringify(newUser));
-              syncAuthCookies(newUser);
+
+              setUser(fullUser);
+              localStorage.setItem("creatorz_auth_session", JSON.stringify(fullUser));
+              syncAuthCookies(fullUser);
+            } catch (err) {
+              console.warn("[AuthContext] session profile sync error", err);
             }
           }
         });
 
         const { data: authListener } = supabase.auth.onAuthStateChange(
-          (event, session) => {
+          async (event, session) => {
             if (event === "SIGNED_IN" && session?.user) {
               const email = session.user.email?.toLowerCase().trim();
-              const currentReg = JSON.parse(
-                localStorage.getItem("creatorz_users_registry") || "[]"
-              );
-              const matched = currentReg.find(
-                (u) => (u.email || "").toLowerCase().trim() === email
-              );
-              if (matched) {
-                setUser(matched);
-                localStorage.setItem("creatorz_auth_session", JSON.stringify(matched));
-                syncAuthCookies(matched);
+              try {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("*")
+                  .eq("email", email)
+                  .maybeSingle();
+
+                let brandProfile = null;
+                if (profile?.role === "brand") {
+                  const { data: bp } = await supabase
+                    .from("brand_profiles")
+                    .select("*")
+                    .eq("user_id", profile.id)
+                    .maybeSingle();
+                  brandProfile = bp;
+                }
+
+                const resolvedRole = profile?.role || session.user.user_metadata?.role || "brand";
+                const isBrand = resolvedRole === "brand";
+                const name =
+                  profile?.name ||
+                  session.user.user_metadata?.full_name ||
+                  session.user.user_metadata?.name ||
+                  (isBrand ? "Brand Partner" : "Creative Partner");
+
+                const company = brandProfile?.company_name || "";
+                const verified = Boolean(brandProfile?.verified);
+                const initials = (company || name)
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase();
+
+                const fullUser = {
+                  id: profile?.id || session.user.id,
+                  email: email,
+                  name: name,
+                  role: resolvedRole,
+                  initials: initials || (isBrand ? "BR" : "CR"),
+                  avatar: profile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                  avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                  company: company,
+                  companyName: company,
+                  category: brandProfile?.category || "D2C Brand",
+                  website: brandProfile?.website || "",
+                  gstin: brandProfile?.gstin || "",
+                  onboarding_completed: isBrand ? Boolean(company) : true,
+                  is_verified: verified,
+                  verified: verified,
+                };
+
+                setUser(fullUser);
+                localStorage.setItem("creatorz_auth_session", JSON.stringify(fullUser));
+                syncAuthCookies(fullUser);
+              } catch (err) {
+                console.warn("[AuthContext onAuthStateChange] error:", err);
               }
             } else if (event === "SIGNED_OUT") {
               setUser(null);
@@ -448,6 +518,26 @@ export function AuthProvider({ children }) {
         console.error("Failed to save auth session", e);
       }
 
+      // If brand user, proactively sync row to Supabase via server API
+      if (role === "brand" && email) {
+        try {
+          fetch("/api/user/sync-brand-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: email,
+              name: newUser.name,
+              companyName: newUser.company || "",
+              category: newUser.category || "D2C Brand",
+              userId: newUser.id,
+              verified: false,
+            }),
+          }).catch((err) => console.warn("[AuthContext signup sync error]", err));
+        } catch (e) {
+          // ignore
+        }
+      }
+
       return newUser;
     },
     [users, checkEmailAvailability]
@@ -526,33 +616,30 @@ export function AuthProvider({ children }) {
         console.error("Failed to update registry in localStorage", e);
       }
 
-      if (isSupabaseConfigured() && supabase) {
+      if (updatedUser.role === "brand") {
         try {
-          await supabase
-            .from("profiles")
-            .update({
+          await fetch("/api/user/sync-brand-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: updatedUser.email,
               name: updatedUser.name,
-              avatar_url: updatedUser.avatar || updatedUser.avatar_url,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("email", updatedUser.email);
-
-          if (updatedUser.role === "brand") {
-            await supabase.from("brand_profiles").upsert(
-              {
-                company_name: updatedUser.company || updatedUser.companyName,
-                category: updatedUser.category || "D2C Brand",
-                website: updatedUser.website,
-                company_type:
-                  updatedUser.specs?.businessType ||
-                  updatedUser.company_type ||
-                  "D2C Brand",
-              },
-              { onConflict: "user_id" }
-            );
-          }
-        } catch (sbErr) {
-          console.warn("[Supabase updateUserProfile sync error]", sbErr);
+              representativeName: updatedUser.representativeName || updatedUser.name,
+              companyName: updatedUser.company || updatedUser.companyName,
+              companyType:
+                updatedUser.specs?.businessType ||
+                updatedUser.company_type ||
+                "D2C Brand",
+              category: updatedUser.category || "D2C Brand",
+              website: updatedUser.website,
+              gstin: updatedUser.gstin,
+              avatarUrl: updatedUser.avatar || updatedUser.avatar_url,
+              userId: updatedUser.id,
+              verified: Boolean(updatedUser.is_verified || updatedUser.verified),
+            }),
+          });
+        } catch (apiErr) {
+          console.warn("[AuthContext sync-brand-profile error]", apiErr);
         }
       }
 
@@ -729,7 +816,7 @@ export function AuthProvider({ children }) {
 
   // Google Sign-In: Tries live Supabase Google OAuth, with informative fallback/guide
   const signInWithGoogle = useCallback(
-    async (role = "creator", customData = {}) => {
+    async (role = "auto", customData = {}) => {
       // 1. If Supabase is configured, trigger genuine Supabase OAuth
       if (isSupabaseConfigured() && supabase) {
         try {

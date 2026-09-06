@@ -3,19 +3,60 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+function detectRoleFromEmail(email) {
+  if (!email) return "creator";
+  const normalized = email.trim().toLowerCase();
+  if (
+    normalized === "admin@creatorz.internal" ||
+    normalized.endsWith("@creatorz.internal") ||
+    normalized.startsWith("admin@")
+  ) {
+    return "admin";
+  }
+  if (
+    normalized.includes("brand") ||
+    normalized.includes("beastlife") ||
+    normalized.includes("kalyan") ||
+    normalized.includes("organics") ||
+    normalized.includes("corp") ||
+    normalized.includes("agency")
+  ) {
+    return "brand";
+  }
+  const domain = normalized.split("@")[1] || "";
+  const freeMail = [
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "icloud.com",
+    "mail.com",
+    "proton.me",
+    "protonmail.com",
+  ];
+  if (domain && !freeMail.includes(domain)) {
+    return "brand";
+  }
+  return "creator";
+}
+
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const role = searchParams.get("role") || "creator";
-  let next = role === "brand" ? "/onboarding/brand" : "/creator/dashboard";
+  const requestedRole = searchParams.get("role") || "auto";
+
+  let next = "/creator/dashboard";
+  let resolvedRole = "creator";
+  let sessionUser = null;
 
   if (code) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (supabaseUrl && supabaseAnonKey) {
+    if (supabaseUrl && supabaseServiceKey) {
       try {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
         await supabase.auth.exchangeCodeForSession(code);
 
         const {
@@ -23,14 +64,22 @@ export async function GET(request) {
         } = await supabase.auth.getUser();
 
         if (user?.email) {
-          // Check if email already registered with opposite role
-          const { data: profile } = await supabase
+          const email = user.email.toLowerCase().trim();
+
+          // 1. Check if profile already exists
+          let { data: profile } = await supabase
             .from("profiles")
             .select("*")
-            .eq("email", user.email)
+            .eq("email", email)
             .maybeSingle();
 
-          if (profile && profile.role && profile.role !== role) {
+          // If explicit signup from /brand/signup or /creator/signup with conflicting role
+          if (
+            requestedRole !== "auto" &&
+            profile &&
+            profile.role &&
+            profile.role !== requestedRole
+          ) {
             const oppositeRole = profile.role === "brand" ? "Brand" : "Creator";
             await supabase.auth.signOut();
             const errorMsg = `This email is already registered as a ${oppositeRole} account. Please use a separate email address.`;
@@ -39,32 +88,110 @@ export async function GET(request) {
             );
           }
 
-          if (!profile) {
-            // New user registration via Google OAuth
-            await supabase.from("profiles").insert({
-              email: user.email,
-              role: role,
-              name:
-                user.user_metadata?.full_name ||
-                (role === "brand" ? "Brand Partner" : "New Creator"),
-              avatar_url: user.user_metadata?.avatar_url || null,
-            });
+          if (profile) {
+            resolvedRole = profile.role || "creator";
+            if (resolvedRole === "brand") {
+              const { data: brandProfile } = await supabase
+                .from("brand_profiles")
+                .select("*")
+                .eq("user_id", profile.id)
+                .maybeSingle();
 
-            if (role === "brand") {
-              next = "/onboarding/brand";
-            }
-          } else if (role === "brand") {
-            // Check brand onboarding completion
-            const { data: brandProfile } = await supabase
-              .from("brand_profiles")
-              .select("*")
-              .eq("user_id", profile.id)
-              .maybeSingle();
+              if (!brandProfile || !brandProfile.company_name) {
+                next = "/onboarding/brand";
+              } else {
+                next = "/brand/dashboard";
+              }
 
-            if (!brandProfile || !brandProfile.company_name) {
-              next = "/onboarding/brand";
+              sessionUser = {
+                id: profile.id,
+                email: email,
+                name: profile.name || user.user_metadata?.full_name || "Brand Partner",
+                role: "brand",
+                avatar: profile.avatar_url || user.user_metadata?.avatar_url || null,
+                avatar_url: profile.avatar_url || user.user_metadata?.avatar_url || null,
+                company: brandProfile?.company_name || "",
+                companyName: brandProfile?.company_name || "",
+                category: brandProfile?.category || "D2C Brand",
+                is_verified: Boolean(brandProfile?.verified),
+                onboarding_completed: Boolean(brandProfile?.company_name),
+              };
+            } else if (resolvedRole === "admin") {
+              next = "/admin/dashboard";
+              sessionUser = {
+                id: profile.id,
+                email: email,
+                name: profile.name || "Ops Director",
+                role: "admin",
+                avatar: profile.avatar_url || null,
+                is_verified: true,
+                onboarding_completed: true,
+              };
             } else {
-              next = "/brand/dashboard";
+              next = "/creator/dashboard";
+              sessionUser = {
+                id: profile.id,
+                email: email,
+                name: profile.name || user.user_metadata?.full_name || "Creator",
+                role: "creator",
+                avatar: profile.avatar_url || user.user_metadata?.avatar_url || null,
+                avatar_url: profile.avatar_url || user.user_metadata?.avatar_url || null,
+                is_verified: true,
+                onboarding_completed: true,
+              };
+            }
+          } else {
+            // New user registration via Google OAuth
+            resolvedRole =
+              requestedRole !== "auto"
+                ? requestedRole
+                : user.user_metadata?.role || detectRoleFromEmail(email);
+
+            const displayName =
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              (resolvedRole === "brand" ? "Brand Partner" : "New Creator");
+
+            const { data: newProfile } = await supabase
+              .from("profiles")
+              .insert({
+                id: user.id,
+                email: email,
+                role: resolvedRole,
+                name: displayName,
+                avatar_url: user.user_metadata?.avatar_url || null,
+                updated_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (resolvedRole === "brand") {
+              next = "/onboarding/brand";
+              sessionUser = {
+                id: user.id,
+                email: email,
+                name: displayName,
+                role: "brand",
+                avatar: user.user_metadata?.avatar_url || null,
+                avatar_url: user.user_metadata?.avatar_url || null,
+                company: "",
+                companyName: "",
+                category: "D2C Brand",
+                is_verified: false,
+                onboarding_completed: false,
+              };
+            } else {
+              next = "/creator/dashboard";
+              sessionUser = {
+                id: user.id,
+                email: email,
+                name: displayName,
+                role: "creator",
+                avatar: user.user_metadata?.avatar_url || null,
+                avatar_url: user.user_metadata?.avatar_url || null,
+                is_verified: true,
+                onboarding_completed: true,
+              };
             }
           }
         }
@@ -74,5 +201,24 @@ export async function GET(request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  const response = NextResponse.redirect(`${origin}${next}`);
+
+  if (sessionUser) {
+    response.cookies.set("creatorz_auth_role", resolvedRole, {
+      path: "/",
+      sameSite: "lax",
+      maxAge: 86400,
+    });
+    response.cookies.set(
+      "creatorz_auth_session",
+      encodeURIComponent(JSON.stringify(sessionUser)),
+      {
+        path: "/",
+        sameSite: "lax",
+        maxAge: 86400,
+      }
+    );
+  }
+
+  return response;
 }

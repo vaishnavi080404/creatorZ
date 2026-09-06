@@ -293,6 +293,29 @@ export default function BrandOnboardingPage() {
         await updateUserProfile(profileUpdates);
       }
 
+      // Direct server-side Supabase sync guarantee
+      try {
+        await fetch("/api/user/sync-brand-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user?.email || profileUpdates.email,
+            name: profileUpdates.representativeName || profileUpdates.name,
+            representativeName: profileUpdates.representativeName || profileUpdates.name,
+            companyName: profileUpdates.company || profileUpdates.companyName,
+            companyType: profileUpdates.businessType || "D2C Brand",
+            category: profileUpdates.category || user?.category || "D2C Brand",
+            website: profileUpdates.website,
+            gstin: profileUpdates.gstin,
+            avatarUrl: profileUpdates.avatar || profileUpdates.avatar_url,
+            userId: user?.id,
+            verified: false,
+          }),
+        });
+      } catch (err) {
+        console.warn("[Onboarding Brand] sync-brand-profile error:", err);
+      }
+
       // Explicitly sync to creatorz_brand_verifications queue
       try {
         const storedQueue = localStorage.getItem("creatorz_brand_verifications");

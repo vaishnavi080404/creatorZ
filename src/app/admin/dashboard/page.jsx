@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -19,6 +19,19 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
+  const [pendingVerificationsCount, setPendingVerificationsCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/admin/verifications")
+      .then((res) => res.json())
+      .then((data) => {
+        const pendingBrands = (data.brands || []).filter((b) => b.status === "pending").length;
+        const pendingCr = (data.creators || []).filter((c) => c.status === "pending").length;
+        setPendingVerificationsCount(pendingBrands + pendingCr);
+      })
+      .catch(() => {});
+  }, []);
+
   const [creators, setCreators] = useState([
     {
       id: "cr-101",
@@ -129,7 +142,7 @@ export default function AdminDashboardPage() {
           className="px-5 py-3 rounded-full bg-[#7A1C28] hover:bg-[#63141E] text-white text-xs font-bold shadow-md transition flex items-center gap-2 self-start md:self-auto shrink-0"
         >
           <UserCheck className="w-4 h-4" />
-          <span>Open Verification Queue (14)</span>
+          <span>Open Verification Queue ({pendingVerificationsCount})</span>
         </Link>
       </div>
 
@@ -152,10 +165,10 @@ export default function AdminDashboardPage() {
         {/* Metric 2: Pending Creator KYC */}
         <div className="bg-white border border-[#E8DEC8] rounded-2xl p-5 shadow-sm flex flex-col justify-between">
           <span className="text-[10px] font-mono uppercase text-[#6C635B] font-bold block">
-            Pending KYC & Tiers
+            Pending Compliance
           </span>
           <span className="text-2xl font-bold font-mono text-[#7A1C28] block mt-1">
-            14 Creators
+            {pendingVerificationsCount} Requests
           </span>
           <Link href="/admin/verification" className="text-[11px] text-[#7A1C28] font-bold hover:underline block mt-0.5">
             Launch Review Deck →
