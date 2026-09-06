@@ -97,11 +97,19 @@ export default function BrandOnboardingPage() {
   // Something Else follow-up
   const [customObjectiveDesc, setCustomObjectiveDesc] = useState("");
 
-  // Step 3: Company Specs
+  // Step 3: Company Specs & KYC
   const [businessType, setBusinessType] = useState("D2C Brand");
   const [roleInCompany, setRoleInCompany] = useState("Growth Marketer");
   const [teamSize, setTeamSize] = useState("11-50");
   const [monthlyBudget, setMonthlyBudget] = useState("₹50,000 - ₹2,00,000");
+
+  // Business KYC & Government ID Verification
+  const [gstin, setGstin] = useState("");
+  const [govIdType, setGovIdType] = useState("Corporate PAN");
+  const [govIdNumber, setGovIdNumber] = useState("");
+  const [kycDoc, setKycDoc] = useState("");
+  const [isUploadingKycDoc, setIsUploadingKycDoc] = useState(false);
+  const kycDocInputRef = useRef(null);
 
   // Auth protection & prefill
   useEffect(() => {
@@ -128,6 +136,10 @@ export default function BrandOnboardingPage() {
         if (user.roleInCompany) setRoleInCompany(user.roleInCompany);
         if (user.teamSize) setTeamSize(user.teamSize);
         if (user.monthlyBudget) setMonthlyBudget(user.monthlyBudget);
+        if (user.gstin && !gstin) setGstin(user.gstin);
+        if (user.govIdType && !govIdType) setGovIdType(user.govIdType);
+        if (user.govIdNumber && !govIdNumber) setGovIdNumber(user.govIdNumber);
+        if (user.kycDoc && !kycDoc) setKycDoc(user.kycDoc);
       }
     }
   }, [authLoading, isAuthenticated, user, router]);
@@ -169,6 +181,20 @@ export default function BrandOnboardingPage() {
       } finally {
         setIsUploadingLogo(false);
       }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle KYC Document Upload
+  const handleKycDocUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingKycDoc(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setKycDoc(event.target?.result);
+      setIsUploadingKycDoc(false);
     };
     reader.readAsDataURL(file);
   };
@@ -225,6 +251,7 @@ export default function BrandOnboardingPage() {
     setValidationError("");
 
     try {
+      const hasKyc = Boolean(gstin.trim() || govIdNumber.trim() || kycDoc);
       const profileUpdates = {
         representativeName: representativeName.trim(),
         name: representativeName.trim(),
@@ -252,6 +279,12 @@ export default function BrandOnboardingPage() {
         roleInCompany,
         teamSize,
         monthlyBudget,
+        gstin: gstin.trim().toUpperCase(),
+        govIdType,
+        govIdNumber: govIdNumber.trim(),
+        kycDoc: kycDoc || null,
+        kyc_submitted: hasKyc,
+        kyc_status: hasKyc ? "pending_review" : "not_submitted",
         onboarding_completed: true,
       };
 
@@ -299,10 +332,6 @@ export default function BrandOnboardingPage() {
 
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EBF7EE] text-[#166534] border border-[#C6E7CE] text-[11px] font-mono font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Collabstr-Style Brand Onboarding</span>
-          </div>
           <h1 className="text-3xl sm:text-4xl font-bold font-heading text-[#181314] tracking-tight">
             Complete Your Brand Profile
           </h1>
@@ -1129,14 +1158,105 @@ export default function BrandOnboardingPage() {
                     </div>
                   </div>
 
-                  {/* Trust & Safe Collaboration Notice */}
-                  <div className="p-4 rounded-2xl bg-[#EBF7EE] border border-[#C6E7CE] flex items-start gap-3">
-                    <ShieldCheck className="w-5 h-5 text-[#166534] flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-[#166534] space-y-0.5">
-                      <p className="font-bold">CreatorZ Milestone & Brief-First Guarantee</p>
-                      <p className="text-[11px] text-[#166534]/80">
-                        You will only be billed when you accept a creator’s video audition and fund a milestone. Submitting your brand profile grants you access to post open briefs immediately.
-                      </p>
+                  {/* Business KYC & Government Identification */}
+                  <div className="p-5 rounded-2xl bg-[#FAF6EE] border border-[#E8DEC8] space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-[#7A1C28]" />
+                          <h3 className="text-xs font-bold text-[#181314] uppercase tracking-wider font-mono">
+                            Business KYC & Government Verification
+                          </h3>
+                        </div>
+                        <p className="text-[11px] text-[#6C635B] mt-0.5">
+                          Submit proof of incorporation or representative identification to earn the Verified Enterprise badge.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold bg-[#EBF7EE] text-[#166534] px-2.5 py-1 rounded-full border border-[#C6E7CE] self-start sm:self-auto">
+                        Fast-Track KYC
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#181314] flex items-center justify-between">
+                          <span>Business GSTIN / Tax ID</span>
+                          <span className="text-[10px] text-[#82575c]">Optional for MVP</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={gstin}
+                          onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                          placeholder="e.g. 27AABCB1234F1Z5"
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#E8DEC8] bg-white text-[#181314] text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#7A1C28]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#181314] flex items-center justify-between">
+                          <span>Representative Government ID</span>
+                          <span className="text-[10px] text-[#82575c]">Authorized Signatory</span>
+                        </label>
+                        <select
+                          value={govIdType}
+                          onChange={(e) => setGovIdType(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#E8DEC8] bg-white text-[#181314] text-xs focus:outline-none focus:ring-2 focus:ring-[#7A1C28]"
+                        >
+                          <option value="Corporate PAN">Corporate PAN / Director PAN</option>
+                          <option value="Aadhaar Card">Aadhaar Card (India)</option>
+                          <option value="Passport">Passport</option>
+                          <option value="Certificate of Incorporation">Certificate of Incorporation (CIN)</option>
+                          <option value="Voter ID">Voter ID</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#181314] block">
+                          Government ID / PAN Number
+                        </label>
+                        <input
+                          type="text"
+                          value={govIdNumber}
+                          onChange={(e) => setGovIdNumber(e.target.value.toUpperCase())}
+                          placeholder="e.g. AABCB1234F or 1234-5678-9012"
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#E8DEC8] bg-white text-[#181314] text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#7A1C28]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#181314] block">
+                          Upload ID Proof / GST Certificate
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => kycDocInputRef.current?.click()}
+                            disabled={isUploadingKycDoc}
+                            className="flex-1 px-3 py-2 rounded-xl bg-white border border-[#D8CEBD] hover:bg-[#FAF3EB] text-xs font-bold text-[#181314] flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-[#7A1C28]" />
+                            <span>{kycDoc ? "Document Attached ✓" : "Upload File (PDF / Image)"}</span>
+                          </button>
+                          {kycDoc && (
+                            <button
+                              type="button"
+                              onClick={() => setKycDoc("")}
+                              className="px-2.5 py-2 rounded-xl text-xs font-medium text-[#991B1B] hover:bg-[#FEE2E2] transition cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          ref={kycDocInputRef}
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleKycDocUpload}
+                          className="hidden"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
