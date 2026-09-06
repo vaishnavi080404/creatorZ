@@ -12,7 +12,8 @@ import {
   Sparkles, 
   Briefcase, 
   Layers,
-  ArrowLeftRight
+  ArrowLeftRight,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -74,12 +75,24 @@ export default function Navbar() {
     router.push(nextRole === "brand" ? "/brand/dashboard" : "/creator/dashboard");
   };
 
+  const isAdmin = user?.role === "admin";
   const isBrand = user?.role === "brand";
-  const dashboardHref = isBrand ? "/brand/dashboard" : "/creator/dashboard";
-  const profileHref = isBrand ? "/brand/dashboard" : "/creator/portfolio";
+  const isCreator = !isAdmin && !isBrand;
+
+  const dashboardHref = isAdmin
+    ? "/admin/dashboard"
+    : isBrand
+    ? "/brand/dashboard"
+    : "/creator/dashboard";
+
+  const profileHref = isAdmin
+    ? "/admin/dashboard"
+    : isBrand
+    ? "/brand/dashboard"
+    : "/creator/portfolio";
 
   return (
-    <header className="bg-[#faf3eb]/95 backdrop-blur-md sticky top-0 z-50 transition-all border-b border-[#e4d0c0] w-full max-w-full overflow-x-hidden">
+    <header className="bg-[#faf3eb]/95 backdrop-blur-md sticky top-0 z-50 transition-all border-b border-[#e4d0c0] w-full max-w-full">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
         
         {/* Brand Logo / Header Title */}
@@ -156,10 +169,14 @@ export default function Navbar() {
                 {/* Initials / Avatar Circle */}
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shadow-xs ${
-                    isBrand ? "bg-[#9E7B35]" : "bg-[#66101b]"
+                    isAdmin
+                      ? "bg-[#7A1C28]"
+                      : isBrand
+                      ? "bg-[#9E7B35]"
+                      : "bg-[#66101b]"
                   }`}
                 >
-                  {user.initials || (isBrand ? "BR" : "CR")}
+                  {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
                 </div>
 
                 {/* Name & Role Badge */}
@@ -168,25 +185,29 @@ export default function Navbar() {
                     {user.name}
                   </span>
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-sm ${
-                      isBrand
+                    className={`text-[9.5px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded-sm ${
+                      isAdmin
+                        ? "bg-[#7A1C28] text-white"
+                        : isBrand
                         ? "bg-[#9E7B35]/15 text-[#9E7B35]"
                         : "bg-[#66101b]/10 text-[#66101b]"
                     }`}
                   >
-                    {isBrand ? "Brand" : "Creator"}
+                    {isAdmin ? (user.badge || "Super Admin") : isBrand ? "Brand" : "Creator"}
                   </span>
                 </div>
 
                 {/* Small role badge on mobile */}
                 <span
-                  className={`sm:hidden text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
-                    isBrand
+                  className={`sm:hidden text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
+                    isAdmin
+                      ? "bg-[#7A1C28] text-white"
+                      : isBrand
                       ? "bg-[#9E7B35]/15 text-[#9E7B35]"
                       : "bg-[#66101b]/10 text-[#66101b]"
                   }`}
                 >
-                  {isBrand ? "Brand" : "Creator"}
+                  {isAdmin ? (user.badge || "Super Admin") : isBrand ? "Brand" : "Creator"}
                 </span>
 
                 <ChevronDown
@@ -204,17 +225,21 @@ export default function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#faf3eb]/98 backdrop-blur-xl border border-[#e4d0c0] shadow-soft-floating p-2 z-50 text-[#66101b]"
+                    className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#faf3eb]/98 backdrop-blur-xl border border-[#e4d0c0] shadow-2xl p-2 z-50 text-[#66101b]"
                   >
                     {/* User Profile Card Header */}
                     <div className="px-3 py-2.5 mb-1.5 rounded-xl bg-white/70 border border-[#ebdcd0]">
                       <div className="flex items-center gap-2.5">
                         <div
                           className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shrink-0 ${
-                            isBrand ? "bg-[#9E7B35]" : "bg-[#66101b]"
+                            isAdmin
+                              ? "bg-[#7A1C28]"
+                              : isBrand
+                              ? "bg-[#9E7B35]"
+                              : "bg-[#66101b]"
                           }`}
                         >
-                          {user.initials}
+                          {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
                         </div>
                         <div className="overflow-hidden">
                           <p className="text-sm font-bold text-[#66101b] truncate">
@@ -231,12 +256,18 @@ export default function Navbar() {
                         </span>
                         <span
                           className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                            isBrand
+                            isAdmin
+                              ? "bg-[#7A1C28]/15 text-[#7A1C28] border border-[#7A1C28]/30"
+                              : isBrand
                               ? "bg-[#9E7B35]/15 text-[#9E7B35] border border-[#9E7B35]/30"
                               : "bg-[#66101b]/10 text-[#66101b] border border-[#66101b]/20"
                           }`}
                         >
-                          {isBrand ? "Brand Partner" : "Alpha Creator"}
+                          {isAdmin
+                            ? "Super Admin Console"
+                            : isBrand
+                            ? "Brand Partner"
+                            : "Alpha Creator"}
                         </span>
                       </div>
                     </div>
@@ -248,37 +279,59 @@ export default function Navbar() {
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
-                        <span className="flex-1">Dashboard</span>
+                        {isAdmin ? (
+                          <ShieldCheck className="w-4 h-4 text-[#7A1C28] group-hover:text-[#66101b] transition-colors" />
+                        ) : (
+                          <LayoutDashboard className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
+                        )}
+                        <span className="flex-1">
+                          {isAdmin ? "Operations Console" : "Dashboard"}
+                        </span>
                         <span className="text-[10px] text-[#82575c] group-hover:text-[#66101b]">
                           Overview
                         </span>
                       </Link>
 
-                      <Link
-                        href={profileHref}
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
-                      >
-                        <User className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
-                        <span className="flex-1">Profile & Settings</span>
-                      </Link>
+                      {isAdmin ? (
+                        <Link
+                          href="/admin/verification"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
+                        >
+                          <Layers className="w-4 h-4 text-[#7A1C28] group-hover:text-[#66101b] transition-colors" />
+                          <span className="flex-1">Verification Queue</span>
+                          <span className="text-[10px] bg-[#7A1C28]/15 text-[#7A1C28] px-1.5 py-0.5 rounded font-bold">
+                            Review
+                          </span>
+                        </Link>
+                      ) : (
+                        <Link
+                          href={profileHref}
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
+                        >
+                          <User className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
+                          <span className="flex-1">Profile & Settings</span>
+                        </Link>
+                      )}
 
-                      {/* Quick Role Switcher for seamless previewing */}
-                      <button
-                        type="button"
-                        onClick={handleRoleToggle}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white text-[#82575c] hover:text-[#66101b] transition-colors group text-left cursor-pointer"
-                        title="Quickly preview as the other role"
-                      >
-                        <ArrowLeftRight className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
-                        <span className="flex-1">
-                          Switch to {isBrand ? "Creator" : "Brand"}
-                        </span>
-                        <span className="text-[10px] bg-[#ebdcd0] text-[#66101b] px-1.5 py-0.5 rounded font-mono">
-                          DEMO
-                        </span>
-                      </button>
+                      {/* Quick Role Switcher for demo creators/brands only */}
+                      {!isAdmin && (
+                        <button
+                          type="button"
+                          onClick={handleRoleToggle}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white text-[#82575c] hover:text-[#66101b] transition-colors group text-left cursor-pointer"
+                          title="Quickly preview as the other role"
+                        >
+                          <ArrowLeftRight className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
+                          <span className="flex-1">
+                            Switch to {isBrand ? "Creator" : "Brand"}
+                          </span>
+                          <span className="text-[10px] bg-[#ebdcd0] text-[#66101b] px-1.5 py-0.5 rounded font-mono">
+                            DEMO
+                          </span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="my-1.5 border-t border-[#e4d0c0]" />
