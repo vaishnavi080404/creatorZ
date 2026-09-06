@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Lock,
   Mail,
@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Sparkles,
   Briefcase,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import CreatorShintaShowcase from "@/components/auth/CreatorShintaShowcase";
@@ -20,6 +21,8 @@ import BrandReeloShowcase from "@/components/auth/BrandReeloShowcase";
 
 export default function UnifiedLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlError = searchParams?.get("error");
   const { autoLogin, signInWithGoogle, findUserByEmail, detectRole } = useAuth();
 
   const [email, setEmail] = useState("alex@creatorz.io");
@@ -27,7 +30,13 @@ export default function UnifiedLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(urlError || "");
+
+  useEffect(() => {
+    if (urlError) {
+      setError(urlError);
+    }
+  }, [urlError]);
 
   // Live auto-detection preview based on current email input
   const detectedPreview = useMemo(() => {
@@ -229,8 +238,9 @@ export default function UnifiedLoginPage() {
 
             {/* Error Notification */}
             {error && (
-              <div className="mb-2 p-2 rounded-xl bg-red-50/90 border border-red-200 text-red-700 text-xs font-medium">
-                {error}
+              <div className="mb-3 p-3 rounded-xl bg-[#FEE2E2] border border-[#FCA5A5] text-[#991B1B] text-xs font-semibold flex items-start gap-2 shadow-xs animate-shake">
+                <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
+                <span className="leading-snug">{error}</span>
               </div>
             )}
 

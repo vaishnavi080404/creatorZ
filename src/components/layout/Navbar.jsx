@@ -79,16 +79,18 @@ export default function Navbar() {
   const isBrand = user?.role === "brand";
   const isCreator = !isAdmin && !isBrand;
 
+  const displayName = user?.company || user?.companyName || user?.name || "User";
+
   const dashboardHref = isAdmin
     ? "/admin/dashboard"
     : isBrand
     ? "/brand/dashboard"
     : "/creator/dashboard";
 
-  const profileHref = isAdmin
+  const editProfileHref = isAdmin
     ? "/admin/dashboard"
     : isBrand
-    ? "/brand/dashboard"
+    ? "/onboarding/brand"
     : "/creator/portfolio";
 
   return (
@@ -160,6 +162,7 @@ export default function Navbar() {
             /* Authenticated User Pill & Dropdown */
             <div className="relative" ref={dropdownRef}>
               <button
+                id="user-pill-btn"
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-full border border-[#e4d0c0] bg-white/90 hover:bg-white hover:border-[#66101b]/40 shadow-xs transition-all duration-200 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-[#66101b]/20"
@@ -167,22 +170,30 @@ export default function Navbar() {
                 aria-haspopup="true"
               >
                 {/* Initials / Avatar Circle */}
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shadow-xs ${
-                    isAdmin
-                      ? "bg-[#7A1C28]"
-                      : isBrand
-                      ? "bg-[#9E7B35]"
-                      : "bg-[#66101b]"
-                  }`}
-                >
-                  {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
-                </div>
+                {user.avatar || user.avatar_url ? (
+                  <img
+                    src={user.avatar || user.avatar_url}
+                    alt={displayName}
+                    className="w-8 h-8 rounded-full object-cover shadow-xs border border-[#e4d0c0]"
+                  />
+                ) : (
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shadow-xs ${
+                      isAdmin
+                        ? "bg-[#7A1C28]"
+                        : isBrand
+                        ? "bg-[#9E7B35]"
+                        : "bg-[#66101b]"
+                    }`}
+                  >
+                    {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
+                  </div>
+                )}
 
                 {/* Name & Role Badge */}
                 <div className="hidden sm:flex flex-col items-start text-left leading-tight">
-                  <span className="text-xs font-bold text-[#66101b] truncate max-w-[120px]">
-                    {user.name}
+                  <span className="text-xs font-bold text-[#66101b] truncate max-w-[130px]">
+                    {displayName}
                   </span>
                   <span
                     className={`text-[9.5px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded-sm ${
@@ -230,20 +241,28 @@ export default function Navbar() {
                     {/* User Profile Card Header */}
                     <div className="px-3 py-2.5 mb-1.5 rounded-xl bg-white/70 border border-[#ebdcd0]">
                       <div className="flex items-center gap-2.5">
-                        <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shrink-0 ${
-                            isAdmin
-                              ? "bg-[#7A1C28]"
-                              : isBrand
-                              ? "bg-[#9E7B35]"
-                              : "bg-[#66101b]"
-                          }`}
-                        >
-                          {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
-                        </div>
+                        {user.avatar || user.avatar_url ? (
+                          <img
+                            src={user.avatar || user.avatar_url}
+                            alt={displayName}
+                            className="w-9 h-9 rounded-full object-cover shadow-xs border border-[#e4d0c0] shrink-0"
+                          />
+                        ) : (
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-[#faf3eb] shrink-0 ${
+                              isAdmin
+                                ? "bg-[#7A1C28]"
+                                : isBrand
+                                ? "bg-[#9E7B35]"
+                                : "bg-[#66101b]"
+                            }`}
+                          >
+                            {user.initials || (isAdmin ? "OD" : isBrand ? "BR" : "CR")}
+                          </div>
+                        )}
                         <div className="overflow-hidden">
                           <p className="text-sm font-bold text-[#66101b] truncate">
-                            {user.name}
+                            {displayName}
                           </p>
                           <p className="text-xs text-[#82575c] truncate">
                             {user.email}
@@ -292,7 +311,21 @@ export default function Navbar() {
                         </span>
                       </Link>
 
-                      {isAdmin ? (
+                      <Link
+                        href={editProfileHref}
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
+                      >
+                        <User className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
+                        <span className="flex-1">Edit Profile</span>
+                        {isBrand && user.onboarding_completed === false && (
+                          <span className="text-[9.5px] bg-[#FFF8E6] text-[#B45309] px-1.5 py-0.5 rounded font-bold border border-[#FDE68A]">
+                            Complete
+                          </span>
+                        )}
+                      </Link>
+
+                      {isAdmin && (
                         <Link
                           href="/admin/verification"
                           onClick={() => setDropdownOpen(false)}
@@ -303,15 +336,6 @@ export default function Navbar() {
                           <span className="text-[10px] bg-[#7A1C28]/15 text-[#7A1C28] px-1.5 py-0.5 rounded font-bold">
                             Review
                           </span>
-                        </Link>
-                      ) : (
-                        <Link
-                          href={profileHref}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-xl hover:bg-white hover:text-[#66101b] text-[#66101b] transition-colors group"
-                        >
-                          <User className="w-4 h-4 text-[#82575c] group-hover:text-[#66101b] transition-colors" />
-                          <span className="flex-1">Profile & Settings</span>
                         </Link>
                       )}
 

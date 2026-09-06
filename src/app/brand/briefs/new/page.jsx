@@ -3,9 +3,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Briefcase, ShieldCheck, Check, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import confetti from "canvas-confetti";
+
 export default function BrandCreateBriefPage() {
     const router = useRouter();
+    const { user } = useAuth();
     const [submitted, setSubmitted] = useState(false);
     const [title, setTitle] = useState("");
     const [budget, setBudget] = useState(30000);
@@ -14,6 +17,30 @@ export default function BrandCreateBriefPage() {
     const [targetAudience, setTargetAudience] = useState("");
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        // Save to creatorz_custom_briefs
+        try {
+            const currentBriefs = JSON.parse(localStorage.getItem("creatorz_custom_briefs") || "[]");
+            const newBrief = {
+                id: `brief-${Date.now()}`,
+                title: title.trim(),
+                budget: Number(budget),
+                deliverablesRequired: deliverable.trim(),
+                description: description.trim(),
+                targetAudience: targetAudience.trim(),
+                brandName: user?.company || user?.companyName || user?.name || "My Brand",
+                brandEmail: user?.email || "",
+                brandLogo: user?.avatar || user?.avatar_url || "",
+                deadline: "Nov 30, 2026",
+                applicantsCount: 0,
+                category: user?.category || "D2C Brand",
+                createdAt: new Date().toISOString(),
+            };
+            localStorage.setItem("creatorz_custom_briefs", JSON.stringify([newBrief, ...currentBriefs]));
+        } catch (err) {
+            console.error("Failed to save brief to localStorage", err);
+        }
+
         confetti({
             particleCount: 100,
             spread: 70,
@@ -23,7 +50,7 @@ export default function BrandCreateBriefPage() {
         setSubmitted(true);
         setTimeout(() => {
             router.push("/brand/dashboard");
-        }, 2000);
+        }, 1800);
     };
     return (<div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
       

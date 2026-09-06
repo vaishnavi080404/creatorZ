@@ -201,6 +201,77 @@ export function AuthProvider({ children }) {
         setUser(parsed);
         syncAuthCookies(parsed);
       }
+
+      // 3. Supabase Session Sync (if live Supabase is active)
+      if (isSupabaseConfigured() && supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user && !storedSession) {
+            const email = session.user.email?.toLowerCase().trim();
+            const matched = activeUsers.find(
+              (u) => (u.email || "").toLowerCase().trim() === email
+            );
+            if (matched) {
+              setUser(matched);
+              localStorage.setItem("creatorz_auth_session", JSON.stringify(matched));
+              syncAuthCookies(matched);
+            } else {
+              const detectedRole = session.user.user_metadata?.role || "brand";
+              const isBrand = detectedRole === "brand";
+              const name =
+                session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                (isBrand ? "Brand Partner" : "Creative Partner");
+              const initials = name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+
+              const newUser = {
+                id: session.user.id,
+                email: session.user.email,
+                name: name,
+                role: detectedRole,
+                initials: initials || (isBrand ? "BR" : "CR"),
+                avatar: session.user.user_metadata?.avatar_url || null,
+                onboarding_completed: !isBrand,
+                is_verified: false,
+              };
+              setUser(newUser);
+              localStorage.setItem("creatorz_auth_session", JSON.stringify(newUser));
+              syncAuthCookies(newUser);
+            }
+          }
+        });
+
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          (event, session) => {
+            if (event === "SIGNED_IN" && session?.user) {
+              const email = session.user.email?.toLowerCase().trim();
+              const currentReg = JSON.parse(
+                localStorage.getItem("creatorz_users_registry") || "[]"
+              );
+              const matched = currentReg.find(
+                (u) => (u.email || "").toLowerCase().trim() === email
+              );
+              if (matched) {
+                setUser(matched);
+                localStorage.setItem("creatorz_auth_session", JSON.stringify(matched));
+                syncAuthCookies(matched);
+              }
+            } else if (event === "SIGNED_OUT") {
+              setUser(null);
+              localStorage.removeItem("creatorz_auth_session");
+              syncAuthCookies(null);
+            }
+          }
+        );
+
+        return () => {
+          authListener?.subscription?.unsubscribe();
+        };
+      }
     } catch (e) {
       console.error("Failed to load auth session or registry from localStorage", e);
     } finally {
@@ -243,7 +314,7 @@ export function AuthProvider({ children }) {
             existing.role === "brand" ? "Brand" : "Creator";
           return {
             available: false,
-            error: `This email is already registered as a ${oppositeRoleName} account.`,
+            error: `This email is already registered as a ${oppositeRoleName} account. Please use a separate email address.`,
             existingUser: existing,
           };
         }
@@ -329,6 +400,13 @@ export function AuthProvider({ children }) {
           formData.category ||
           (role === "creator" ? "General Creator" : "D2C Brand"),
         tier: "Rising",
+        onboarding_completed:
+          formData.onboarding_completed !== undefined
+            ? formData.onboarding_completed
+            : role === "brand"
+            ? false
+            : true,
+        is_verified: formData.is_verified || false,
         ...formData,
       };
 
@@ -356,6 +434,90 @@ export function AuthProvider({ children }) {
       return newUser;
     },
     [users, checkEmailAvailability]
+  );
+
+  // Update authenticated user profile and sync to storage/database
+  const updateUserProfile = useCallback(
+    async (updates = {}) => {
+      if (!user) return null;
+
+      const updatedUser = {
+        ...user,
+        ...updates,
+        company: updates.company || updates.companyName || user.company,
+        companyName: updates.companyName || updates.company || user.companyName,
+        name: updates.representativeName || updates.name || user.name,
+        avatar: updates.avatar || updates.logo || user.avatar,
+        avatar_url: updates.avatar || updates.logo || user.avatar_url,
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      const titleForInitials = updatedUser.company || updatedUser.name || "US";
+      updatedUser.initials = titleForInitials
+        .trim()
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+      setUser(updatedUser);
+
+      try {
+        localStorage.setItem("creatorz_auth_session", JSON.stringify(updatedUser));
+        syncAuthCookies(updatedUser);
+      } catch (e) {
+        console.error("Failed to save updated session to localStorage", e);
+      }
+
+      try {
+        const storedRegistry = localStorage.getItem("creatorz_users_registry");
+        let reg = storedRegistry ? JSON.parse(storedRegistry) : users;
+        reg = reg.map((u) =>
+          (u.email || "").toLowerCase() === (updatedUser.email || "").toLowerCase()
+            ? updatedUser
+            : u
+        );
+        setUsers(reg);
+        localStorage.setItem("creatorz_users_registry", JSON.stringify(reg));
+      } catch (e) {
+        console.error("Failed to update registry in localStorage", e);
+      }
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase
+            .from("profiles")
+            .update({
+              name: updatedUser.name,
+              avatar_url: updatedUser.avatar || updatedUser.avatar_url,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("email", updatedUser.email);
+
+          if (updatedUser.role === "brand") {
+            await supabase.from("brand_profiles").upsert(
+              {
+                company_name: updatedUser.company || updatedUser.companyName,
+                category: updatedUser.category || "D2C Brand",
+                website: updatedUser.website,
+                company_type:
+                  updatedUser.specs?.businessType ||
+                  updatedUser.company_type ||
+                  "D2C Brand",
+              },
+              { onConflict: "user_id" }
+            );
+          }
+        } catch (sbErr) {
+          console.warn("[Supabase updateUserProfile sync error]", sbErr);
+        }
+      }
+
+      return updatedUser;
+    },
+    [user, users]
   );
 
   // Auto-detect login by inspecting email record
@@ -568,30 +730,46 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // 2. Demo fallback: generate a fresh unique email to avoid collision
+      // 2. Demo fallback: check if email provided has opposite role!
+      if (customData.email) {
+        const check = checkEmailAvailability(customData.email, role);
+        if (!check.available) {
+          throw new Error(check.error);
+        }
+      }
+
       const freshEmail = customData.email || `google.user.${Date.now()}@gmail.com`;
       const name = customData.name || (role === "brand" ? "Google Brand Partner" : "Google Creator");
 
       const created = signup(role, {
         name,
         email: freshEmail,
-        company: role === "brand" ? "Google Enterprise Partner" : undefined,
-        category: role === "brand" ? "FMCG & Beverages" : "Fashion & Lifestyle",
+        company: role === "brand" ? "" : undefined,
+        category: role === "brand" ? "" : "Fashion & Lifestyle",
+        onboarding_completed: role === "brand" ? false : true,
+        is_verified: false,
         ...customData,
       });
 
       return { success: true, user: created, role };
     },
-    [signup]
+    [signup, checkEmailAvailability]
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setUser(null);
     try {
       localStorage.removeItem("creatorz_auth_session");
       syncAuthCookies(null);
     } catch (e) {
       console.error("Failed to remove auth session", e);
+    }
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // ignore
+      }
     }
   }, []);
 
@@ -607,6 +785,7 @@ export function AuthProvider({ children }) {
         adminLogin,
         autoLogin,
         signup,
+        updateUserProfile,
         signInWithGoogle,
         logout,
         checkEmailAvailability,

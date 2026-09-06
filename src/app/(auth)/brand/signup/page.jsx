@@ -73,8 +73,9 @@ export default function BrandSignupPage() {
           email: formData.email,
           category: formData.industry,
           title: "Brand Commissioner",
+          onboarding_completed: false,
         });
-        router.push("/brand/dashboard");
+        router.push("/onboarding/brand");
       } catch (err) {
         setError(err.message || "Failed to create brand account.");
         setIsLoading(false);
@@ -100,6 +101,8 @@ export default function BrandSignupPage() {
           email: demoEmail,
           category: "FMCG & Beverages",
           title: "Brand Commissioner",
+          onboarding_completed: true,
+          is_verified: true,
         });
         router.push("/brand/dashboard");
       } catch (err) {
@@ -115,13 +118,14 @@ export default function BrandSignupPage() {
     try {
       const res = await signInWithGoogle("brand", {
         name: formData.name || "Brand Partner",
-        company: formData.company || "Enterprise Brand",
+        company: formData.company || "",
         category: formData.industry || "FMCG & Beverages",
+        onboarding_completed: false,
       });
       if (res?.redirecting) {
         return;
       }
-      router.push("/brand/dashboard");
+      router.push("/onboarding/brand");
     } catch (err) {
       setError(err.message || "Failed to sign up with Google.");
       setIsLoading(false);
