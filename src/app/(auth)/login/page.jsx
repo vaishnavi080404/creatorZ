@@ -20,7 +20,7 @@ import BrandReeloShowcase from "@/components/auth/BrandReeloShowcase";
 
 export default function UnifiedLoginPage() {
   const router = useRouter();
-  const { autoLogin, findUserByEmail, detectRole } = useAuth();
+  const { autoLogin, signInWithGoogle, findUserByEmail, detectRole } = useAuth();
 
   const [email, setEmail] = useState("alex@creatorz.io");
   const [password, setPassword] = useState("creator123");
@@ -96,24 +96,25 @@ export default function UnifiedLoginPage() {
     }, 350);
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setError("");
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        const result = autoLogin("maya.roy.creates@gmail.com", "googlepass123", {
-          name: "Maya Roy (Google)",
-        });
-        if (result.role === "brand") {
-          router.push("/brand/dashboard");
-        } else {
-          router.push("/creator/dashboard");
-        }
-      } catch (err) {
-        setError(err.message || "Google Sign In failed. Please try again.");
-        setIsLoading(false);
+    try {
+      const res = await signInWithGoogle("creator", {
+        name: "Creative Partner (Google)",
+      });
+      if (res?.redirecting) {
+        return;
       }
-    }, 400);
+      if (res?.role === "brand") {
+        router.push("/brand/dashboard");
+      } else {
+        router.push("/creator/dashboard");
+      }
+    } catch (err) {
+      setError(err.message || "Google Sign In failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (

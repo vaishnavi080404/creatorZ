@@ -19,7 +19,7 @@ import CreatorVideoWallShowcase from "@/components/auth/CreatorVideoWallShowcase
 
 export default function CreatorSignupPage() {
   const router = useRouter();
-  const { signup, checkEmailAvailability } = useAuth();
+  const { signup, signInWithGoogle, checkEmailAvailability } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "Maya Roy",
@@ -105,30 +105,23 @@ export default function CreatorSignupPage() {
     }, 350);
   };
 
-  const handleGoogleSignUp = () => {
-    const googleEmail = "maya.roy.creates@gmail.com";
-    const check = checkEmailAvailability(googleEmail, "creator");
-    if (!check.available && check.existingUser?.role !== "creator") {
-      setError(check.error);
-      return;
-    }
-
+  const handleGoogleSignUp = async () => {
     setError("");
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        signup("creator", {
-          name: "Maya Roy (Google)",
-          email: googleEmail,
-          handle: "@maya_roy",
-          category: "Fashion & Lifestyle",
-        });
-        router.push("/creator/dashboard");
-      } catch (err) {
-        setError(err.message || "Failed to sign up with Google.");
-        setIsLoading(false);
+    try {
+      const res = await signInWithGoogle("creator", {
+        name: formData.name || "Creative Partner",
+        handle: formData.handle || "@creator",
+        category: formData.category || "Fashion & Lifestyle",
+      });
+      if (res?.redirecting) {
+        return;
       }
-    }, 400);
+      router.push("/creator/dashboard");
+    } catch (err) {
+      setError(err.message || "Failed to sign up with Google.");
+      setIsLoading(false);
+    }
   };
 
   return (

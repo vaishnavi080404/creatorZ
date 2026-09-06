@@ -20,7 +20,7 @@ import BrandCircleShowcase from "@/components/auth/BrandCircleShowcase";
 
 export default function BrandSignupPage() {
   const router = useRouter();
-  const { signup, checkEmailAvailability } = useAuth();
+  const { signup, signInWithGoogle, checkEmailAvailability } = useAuth();
 
   const [formData, setFormData] = useState({
     company: "Kalyan Organics",
@@ -109,31 +109,23 @@ export default function BrandSignupPage() {
     }, 350);
   };
 
-  const handleGoogleSignUp = () => {
-    const googleEmail = "karan.mehra@kalyanorganics.com";
-    const check = checkEmailAvailability(googleEmail, "brand");
-    if (!check.available && check.existingUser?.role !== "brand") {
-      setError(check.error);
-      return;
-    }
-
+  const handleGoogleSignUp = async () => {
     setError("");
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        signup("brand", {
-          name: "Karan Mehra (Google)",
-          company: "Kalyan Organics",
-          email: googleEmail,
-          category: "FMCG & Beverages",
-          title: "Brand Commissioner",
-        });
-        router.push("/brand/dashboard");
-      } catch (err) {
-        setError(err.message || "Failed to sign up with Google.");
-        setIsLoading(false);
+    try {
+      const res = await signInWithGoogle("brand", {
+        name: formData.name || "Brand Partner",
+        company: formData.company || "Enterprise Brand",
+        category: formData.industry || "FMCG & Beverages",
+      });
+      if (res?.redirecting) {
+        return;
       }
-    }, 400);
+      router.push("/brand/dashboard");
+    } catch (err) {
+      setError(err.message || "Failed to sign up with Google.");
+      setIsLoading(false);
+    }
   };
 
   return (

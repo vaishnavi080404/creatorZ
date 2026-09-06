@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const AuthContext = createContext(null);
 
@@ -523,6 +524,67 @@ export function AuthProvider({ children }) {
     []
   );
 
+  // Google Sign-In: Tries live Supabase Google OAuth, with informative fallback/guide
+  const signInWithGoogle = useCallback(
+    async (role = "creator", customData = {}) => {
+      // 1. If Supabase is configured, trigger genuine Supabase OAuth
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const redirectUrl =
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback?role=${role}`
+              : undefined;
+
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: redirectUrl,
+              queryParams: {
+                access_type: "offline",
+                prompt: "consent",
+              },
+            },
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          if (data?.url) {
+            window.location.href = data.url;
+            return { success: true, redirecting: true };
+          }
+        } catch (supabaseError) {
+          console.warn("[CreatorZ Google Auth]", supabaseError.message);
+          if (
+            supabaseError.message?.toLowerCase().includes("provider is not enabled") ||
+            supabaseError.message?.toLowerCase().includes("unsupported provider")
+          ) {
+            throw new Error(
+              "Google Sign-In is not enabled in your Supabase project yet. Please enable Google under Supabase Dashboard -> Authentication -> Providers -> Google."
+            );
+          }
+          throw supabaseError;
+        }
+      }
+
+      // 2. Demo fallback: generate a fresh unique email to avoid collision
+      const freshEmail = customData.email || `google.user.${Date.now()}@gmail.com`;
+      const name = customData.name || (role === "brand" ? "Google Brand Partner" : "Google Creator");
+
+      const created = signup(role, {
+        name,
+        email: freshEmail,
+        company: role === "brand" ? "Google Enterprise Partner" : undefined,
+        category: role === "brand" ? "FMCG & Beverages" : "Fashion & Lifestyle",
+        ...customData,
+      });
+
+      return { success: true, user: created, role };
+    },
+    [signup]
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     try {
@@ -545,6 +607,7 @@ export function AuthProvider({ children }) {
         adminLogin,
         autoLogin,
         signup,
+        signInWithGoogle,
         logout,
         checkEmailAvailability,
         findUserByEmail,
