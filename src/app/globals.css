@@ -1,0 +1,434 @@
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@200,300,400,500,600,700,800,900&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --bg-main: #faf3eb;
+  --bg-card: #FFFFFF;
+  --bg-card-sub: #f3e8dc;
+  --bg-badge: #eddcd0;
+  --border-color: #e4d0c0;
+  --border-subtle: #ebdcd0;
+  --text-main: #66101b;
+  --text-muted: #82575c;
+  --accent-burgundy: #66101b;
+  --accent-burgundy-hover: #4d0a13;
+  --accent-burgundy-light: rgba(102, 16, 27, 0.08);
+  --accent-gold: #9E7B35;
+  --background: #faf3eb;
+  --foreground: #66101b;
+  --card: #FFFFFF;
+  --card-foreground: #66101b;
+  --popover: #FFFFFF;
+  --popover-foreground: #66101b;
+  --primary: #66101b;
+  --primary-foreground: #faf3eb;
+  --secondary: #faf3eb;
+  --secondary-foreground: #66101b;
+  --muted: #f3e8dc;
+  --muted-foreground: #82575c;
+  --accent: #f3e8dc;
+  --accent-foreground: #66101b;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e4d0c0;
+  --input: #e4d0c0;
+  --ring: #66101b;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: #faf3eb;
+  --sidebar-foreground: #66101b;
+  --sidebar-primary: #66101b;
+  --sidebar-primary-foreground: #faf3eb;
+  --sidebar-accent: #f3e8dc;
+  --sidebar-accent-foreground: #66101b;
+  --sidebar-border: #e4d0c0;
+  --sidebar-ring: #66101b;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: "Miller Text", "miller-text", var(--font-source-serif), Georgia, Cambria, "Times New Roman", Times, serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.01em;
+}
+
+/* Custom Display & Editorial Utilities */
+.font-heading {
+  font-family: "Miller Text", "miller-text", var(--font-source-serif), Georgia, serif;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.font-serif-editorial {
+  font-family: "Miller Text", "miller-text", var(--font-source-serif), Georgia, serif;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F6F1E8;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8CEBD;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4B8A3;
+}
+
+/* Glassmorphism & Soft Floating Shadows */
+.shadow-soft-floating {
+  box-shadow: 0 12px 36px -8px rgba(24, 19, 20, 0.06), 0 4px 12px -2px rgba(123, 31, 92, 0.03);
+}
+
+.shadow-card-elevated {
+  box-shadow: 0 4px 20px -2px rgba(24, 19, 20, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+@theme inline {
+  --font-heading: "Miller Text", "miller-text", var(--font-source-serif), Georgia, serif;
+  --font-sans: "Miller Text", "miller-text", var(--font-source-serif), Georgia, serif;
+  --font-serif: "Miller Text", "miller-text", var(--font-source-serif), Georgia, serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+.animate-float {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-gentle 7s ease-in-out infinite 2s;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 6.5s ease-in-out infinite 1s;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 5s ease-in-out infinite;
+}
+
+@keyframes subtle-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+.animate-subtle-float {
+  animation: subtle-float 6s ease-in-out infinite;
+}
+
+@keyframes marquee-vertical-up {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marquee-vertical-down {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+.animate-marquee-v-up {
+  animation: marquee-vertical-up 44s linear infinite;
+}
+
+.animate-marquee-v-down {
+  animation: marquee-vertical-down 48s linear infinite;
+}
+
+.animate-marquee-v-up:hover,
+.animate-marquee-v-down:hover {
+  animation-play-state: paused;
+}
+
+/* Continuous Ken Burns Dynamic Pan & Zoom for Brand Portal Showcase */
+@keyframes brand-kenburns-1 {
+  0% {
+    transform: scale(1) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.22) translate(-2.5%, -2%);
+  }
+  100% {
+    transform: scale(1.08) translate(2%, 1.5%);
+  }
+}
+
+@keyframes brand-kenburns-2 {
+  0% {
+    transform: scale(1.18) translate(2%, 1.5%);
+  }
+  50% {
+    transform: scale(1.02) translate(-2%, -1%);
+  }
+  100% {
+    transform: scale(1.24) translate(-1%, 2.5%);
+  }
+}
+
+@keyframes brand-kenburns-3 {
+  0% {
+    transform: scale(1.04) translate(0%, 1.5%);
+  }
+  50% {
+    transform: scale(1.2) translate(2%, -2%);
+  }
+  100% {
+    transform: scale(1.1) translate(-2%, 0%);
+  }
+}
+
+@keyframes brand-portal-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+.animate-brand-kb-1 {
+  animation: brand-kenburns-1 12s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.animate-brand-kb-2 {
+  animation: brand-kenburns-2 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.animate-brand-kb-3 {
+  animation: brand-kenburns-3 16s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.animate-portal-gentle {
+  animation: brand-portal-pulse 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Continuous Horizontal Marquees for Brand Mosaic Rows */
+@keyframes marquee-row-left {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-row-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+/* Dramatic, Eye-Catching Zoom In & Out Animations */
+@keyframes dynamic-zoom-1 {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.36);
+  }
+}
+
+@keyframes dynamic-zoom-2 {
+  0%, 100% {
+    transform: scale(1.32);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes dynamic-zoom-3 {
+  0%, 100% {
+    transform: scale(1.05);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+.animate-marquee-left {
+  animation: marquee-row-left 18s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-right {
+  animation: marquee-row-right 20s linear infinite;
+  will-change: transform;
+}
+
+.animate-zoom-in-out-1 {
+  animation: dynamic-zoom-1 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-zoom-in-out-2 {
+  animation: dynamic-zoom-2 4.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-zoom-in-out-3 {
+  animation: dynamic-zoom-3 5.4s ease-in-out infinite;
+  will-change: transform;
+}
