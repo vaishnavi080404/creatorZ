@@ -174,19 +174,36 @@ export function AuthProvider({ children }) {
   // Initialize users registry and auth session from localStorage
   useEffect(() => {
     try {
-      // 1. Load users registry
+      // 1. Load users registry safely without wiping user customized profiles
       const storedRegistry = localStorage.getItem("creatorz_users_registry");
       let activeUsers = SEED_USERS;
       if (storedRegistry) {
-        const parsedRegistry = JSON.parse(storedRegistry);
-        // Merge seed users so default accounts are never lost
-        const seedEmails = new Set(
-          SEED_USERS.map((u) => u.email.toLowerCase().trim())
-        );
-        const nonSeedStored = parsedRegistry.filter(
-          (u) => !seedEmails.has((u.email || "").toLowerCase().trim())
-        );
-        activeUsers = [...SEED_USERS, ...nonSeedStored];
+        try {
+          const parsed = JSON.parse(storedRegistry);
+          const parsedArray = Array.isArray(parsed) ? parsed : Object.values(parsed);
+          
+          // Map of stored users by normalized email
+          const storedEmailMap = new Map();
+          parsedArray.forEach((u) => {
+            if (u && u.email) {
+              storedEmailMap.set(u.email.toLowerCase().trim(), u);
+            }
+          });
+
+          // Keep all stored users, including customized seed accounts (e.g. customized company names)
+          const merged = [...parsedArray];
+
+          // Ensure any missing seed users are available as fallback
+          SEED_USERS.forEach((su) => {
+            if (su && su.email && !storedEmailMap.has(su.email.toLowerCase().trim())) {
+              merged.push(su);
+            }
+          });
+          activeUsers = merged;
+        } catch (err) {
+          console.error("Failed to parse stored registry", err);
+          activeUsers = SEED_USERS;
+        }
       }
       setUsers(activeUsers);
       localStorage.setItem(
@@ -474,13 +491,37 @@ export function AuthProvider({ children }) {
       try {
         const storedRegistry = localStorage.getItem("creatorz_users_registry");
         let reg = storedRegistry ? JSON.parse(storedRegistry) : users;
-        reg = reg.map((u) =>
-          (u.email || "").toLowerCase() === (updatedUser.email || "").toLowerCase()
-            ? updatedUser
-            : u
+        const regArray = Array.isArray(reg) ? [...reg] : Object.values(reg);
+        const userEmail = (updatedUser.email || "").toLowerCase().trim();
+        
+        const existingIdx = regArray.findIndex(
+          (u) => (u.email || "").toLowerCase().trim() === userEmail
         );
-        setUsers(reg);
-        localStorage.setItem("creatorz_users_registry", JSON.stringify(reg));
+        if (existingIdx >= 0) {
+          regArray[existingIdx] = updatedUser;
+        } else {
+          regArray.push(updatedUser);
+        }
+        setUsers(regArray);
+        localStorage.setItem("creatorz_users_registry", JSON.stringify(regArray));
+
+        // If brand user, sync directly to creatorz_brand_verifications queue
+        if (updatedUser.role === "brand") {
+          const storedQueue = localStorage.getItem("creatorz_brand_verifications");
+          let brandQueue = storedQueue ? JSON.parse(storedQueue) : [];
+          if (!Array.isArray(brandQueue)) brandQueue = Object.values(brandQueue);
+          
+          const qIdx = brandQueue.findIndex(
+            (b) => (b.email || "").toLowerCase().trim() === userEmail ||
+                   (b.company && b.company.toLowerCase().trim() === (updatedUser.company || "").toLowerCase().trim())
+          );
+          if (qIdx >= 0) {
+            brandQueue[qIdx] = { ...brandQueue[qIdx], ...updatedUser };
+          } else {
+            brandQueue.unshift(updatedUser);
+          }
+          localStorage.setItem("creatorz_brand_verifications", JSON.stringify(brandQueue));
+        }
       } catch (e) {
         console.error("Failed to update registry in localStorage", e);
       }

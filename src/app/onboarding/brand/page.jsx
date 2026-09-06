@@ -286,10 +286,59 @@ export default function BrandOnboardingPage() {
         kyc_submitted: hasKyc,
         kyc_status: hasKyc ? "pending_review" : "not_submitted",
         onboarding_completed: true,
+        role: "brand",
       };
 
       if (updateUserProfile) {
         await updateUserProfile(profileUpdates);
+      }
+
+      // Explicitly sync to creatorz_brand_verifications queue
+      try {
+        const storedQueue = localStorage.getItem("creatorz_brand_verifications");
+        let brandQueue = storedQueue ? JSON.parse(storedQueue) : [];
+        if (!Array.isArray(brandQueue)) brandQueue = Object.values(brandQueue);
+
+        const currentEmail = user?.email || profileUpdates.email || `brand_${Date.now()}@creatorz.io`;
+        const companyLabel = profileUpdates.company || profileUpdates.companyName || "Enterprise Brand";
+
+        const brandEntry = {
+          id: user?.id || `br-${Date.now()}`,
+          name: profileUpdates.representativeName || profileUpdates.name || "Brand Lead",
+          representative: profileUpdates.representativeName || profileUpdates.name || "Brand Lead",
+          company: companyLabel,
+          companyName: companyLabel,
+          email: currentEmail,
+          role: "brand",
+          category: user?.category || "D2C Brand",
+          budget: profileUpdates.monthlyBudget || "₹50k - ₹2,00,000",
+          monthlyBudget: profileUpdates.monthlyBudget || "₹50k - ₹2,00,000",
+          objective: profileUpdates.objective || "UGC",
+          gstin: profileUpdates.gstin || "NOT PROVIDED",
+          govIdType: profileUpdates.govIdType || "Corporate PAN",
+          govIdNumber: profileUpdates.govIdNumber || "NOT PROVIDED",
+          kycDoc: profileUpdates.kycDoc ? "uploaded_signatory_document.png" : null,
+          status: "pending",
+          kyc_status: hasKyc ? "pending_review" : "not_submitted",
+          is_verified: false,
+          verified: false,
+          submittedDate: "Just now",
+          onboarding_completed: true,
+        };
+
+        const idx = brandQueue.findIndex(
+          (b) => (b.email || "").toLowerCase() === currentEmail.toLowerCase() ||
+                 (b.company && b.company.toLowerCase() === companyLabel.toLowerCase())
+        );
+        if (idx >= 0) {
+          brandQueue[idx] = { ...brandQueue[idx], ...brandEntry };
+        } else {
+          brandQueue.unshift(brandEntry);
+        }
+        localStorage.setItem("creatorz_brand_verifications", JSON.stringify(brandQueue));
+        window.dispatchEvent(new Event("storage"));
+      } catch (err) {
+        console.error("Failed to sync to creatorz_brand_verifications", err);
       }
 
       // Celebratory Confetti

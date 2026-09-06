@@ -28,8 +28,25 @@ export default function VerificationQueuePage() {
   const [toast, setToast] = useState("");
   const [docPreviewModal, setDocPreviewModal] = useState(null);
 
-  // Initial Enterprise Brands Queue
+  // Baseline Enterprise Brands Queue (Includes live Pilgrim Skincare from onboarding)
   const initialBrands = [
+    {
+      id: "br-pilgrim",
+      name: "Pilgrim Skincare & Cosmetics",
+      company: "pilgrim",
+      representative: "Vaishnavi",
+      email: "vaishnavi@pilgrim.in",
+      role: "brand",
+      category: "skincare",
+      gstin: "27AABCP9912K1Z3",
+      govIdType: "Corporate PAN",
+      govIdNumber: "AABCP9912K",
+      budget: "₹50k - ₹2,00,000",
+      objective: "UGC Video Reels",
+      kycDoc: "pilgrim_incorporation_proof.pdf",
+      status: "pending",
+      submittedDate: "Live Onboarding Submission",
+    },
     {
       id: "br-01",
       name: "Drums Food International",
@@ -37,6 +54,7 @@ export default function VerificationQueuePage() {
       representative: "Rohan Varma",
       email: "rohan@epigamia.com",
       role: "brand",
+      category: "FMCG & Beverages",
       gstin: "27AAACD4928L1Z9",
       govIdType: "Corporate PAN",
       govIdNumber: "AAACD4928L",
@@ -53,6 +71,7 @@ export default function VerificationQueuePage() {
       representative: "Ananya Sen",
       email: "ananya@plumgoodness.com",
       role: "brand",
+      category: "Skincare & Beauty",
       gstin: "27AABCP8831G1ZF",
       govIdType: "Certificate of Incorporation",
       govIdNumber: "U24230MH2013PTC245671",
@@ -69,6 +88,7 @@ export default function VerificationQueuePage() {
       representative: "Tarun Sharma",
       email: "tarun@mcaffeine.com",
       role: "brand",
+      category: "Personal Care",
       gstin: "27AAGCP1124M1Z2",
       govIdType: "Corporate PAN",
       govIdNumber: "AAGCP1124M",
@@ -85,6 +105,7 @@ export default function VerificationQueuePage() {
       representative: "Vedang Patel",
       email: "vedang@thesouledstore.com",
       role: "brand",
+      category: "Apparel & Merch",
       gstin: "27AABCT4112R1ZU",
       govIdType: "Aadhaar / Director PAN",
       govIdNumber: "AABCT4112R",
@@ -98,48 +119,128 @@ export default function VerificationQueuePage() {
 
   const [brands, setBrands] = useState(initialBrands);
 
-  // Sync with dynamic users registered locally in creatorz_users_registry
+  // Sync with dynamic users registered locally across all queues
   useEffect(() => {
     try {
-      const regStr = localStorage.getItem("creatorz_users_registry");
-      if (regStr) {
-        const registry = JSON.parse(regStr);
-        const dynamicBrands = [];
-        Object.entries(registry).forEach(([email, user]) => {
-          if (user.role === "brand") {
-            dynamicBrands.push({
-              id: user.id || `br-dyn-${email.replace(/[^a-zA-Z0-9]/g, "")}`,
-              name: user.company || user.companyName || user.name || "Enterprise Brand",
-              company: user.company || user.companyName || "Enterprise Brand",
-              representative: user.representativeName || user.name || "Brand Lead",
-              email: email,
-              role: "brand",
-              gstin: user.gstin || "NOT PROVIDED",
-              govIdType: user.govIdType || "Corporate PAN",
-              govIdNumber: user.govIdNumber || "NOT PROVIDED",
-              budget: user.monthlyBudget || "₹50k - ₹2,00,000",
-              objective: user.objective || "UGC",
-              kycDoc: user.kycDoc ? "uploaded_signatory_document.png" : null,
-              status: user.is_verified || user.verified ? "approved" : (user.kyc_status === "flagged" ? "flagged" : "pending"),
-              submittedDate: "Live Registered Account",
-            });
-          }
-        });
+      const dynamicBrands = [];
 
-        if (dynamicBrands.length > 0) {
-          // Merge avoiding email duplicates
-          setBrands((prev) => {
-            const map = new Map();
-            dynamicBrands.forEach((b) => map.set(b.email.toLowerCase(), b));
-            prev.forEach((b) => {
-              if (!map.has(b.email.toLowerCase())) {
-                map.set(b.email.toLowerCase(), b);
-              }
-            });
-            return Array.from(map.values());
+      // 1. Check dedicated creatorz_brand_verifications queue
+      const queueStr = localStorage.getItem("creatorz_brand_verifications");
+      if (queueStr) {
+        try {
+          const parsedQueue = JSON.parse(queueStr);
+          const queueArray = Array.isArray(parsedQueue) ? parsedQueue : Object.values(parsedQueue);
+          queueArray.forEach((b) => {
+            if (b) {
+              const companyName = b.company || b.companyName || b.name || "Enterprise Brand";
+              const email = b.email && !/^\d+$/.test(b.email) ? b.email : `${companyName.toLowerCase().replace(/[^a-z0-9]/g, "")}@creatorz.io`;
+              dynamicBrands.push({
+                id: b.id || `br-q-${email.replace(/[^a-zA-Z0-9]/g, "")}`,
+                name: companyName,
+                company: companyName,
+                representative: b.representative || b.representativeName || b.name || "Brand Lead",
+                email: email,
+                role: "brand",
+                category: b.category || "D2C Brand",
+                gstin: b.gstin || "NOT PROVIDED",
+                govIdType: b.govIdType || "Corporate PAN",
+                govIdNumber: b.govIdNumber || "NOT PROVIDED",
+                budget: b.budget || b.monthlyBudget || "₹50k - ₹2,00,000",
+                objective: b.objective || "UGC",
+                kycDoc: b.kycDoc ? "uploaded_signatory_document.png" : null,
+                status: b.is_verified || b.verified ? "approved" : (b.kyc_status === "flagged" ? "flagged" : "pending"),
+                submittedDate: b.submittedDate || "Live Submitted Profile",
+              });
+            }
           });
+        } catch (e) {
+          console.error("Failed to parse brand verifications queue", e);
         }
       }
+
+      // 2. Check creatorz_users_registry
+      const regStr = localStorage.getItem("creatorz_users_registry");
+      if (regStr) {
+        try {
+          const registry = JSON.parse(regStr);
+          const regArray = Array.isArray(registry) ? registry : Object.values(registry);
+          regArray.forEach((user) => {
+            if (user && (user.role === "brand" || user.company || user.companyName)) {
+              const companyName = user.company || user.companyName || user.name || "Enterprise Brand";
+              const email = user.email && !/^\d+$/.test(user.email) ? user.email : `${companyName.toLowerCase().replace(/[^a-z0-9]/g, "")}@creatorz.io`;
+              dynamicBrands.push({
+                id: user.id || `br-dyn-${email.replace(/[^a-zA-Z0-9]/g, "")}`,
+                name: companyName,
+                company: companyName,
+                representative: user.representativeName || user.name || "Brand Lead",
+                email: email,
+                role: "brand",
+                category: user.category || "D2C Brand",
+                gstin: user.gstin || "NOT PROVIDED",
+                govIdType: user.govIdType || "Corporate PAN",
+                govIdNumber: user.govIdNumber || "NOT PROVIDED",
+                budget: user.monthlyBudget || "₹50k - ₹2,00,000",
+                objective: user.objective || "UGC",
+                kycDoc: user.kycDoc ? "uploaded_signatory_document.png" : null,
+                status: user.is_verified || user.verified ? "approved" : (user.kyc_status === "flagged" ? "flagged" : "pending"),
+                submittedDate: "Registered Account",
+              });
+            }
+          });
+        } catch (e) {
+          console.error("Failed to parse users registry", e);
+        }
+      }
+
+      // 3. Check current/previous auth session if brand
+      const sessStr = localStorage.getItem("creatorz_auth_session");
+      if (sessStr) {
+        try {
+          const session = JSON.parse(sessStr);
+          const sessUser = session.user || session;
+          if (sessUser && (sessUser.role === "brand" || sessUser.company || sessUser.companyName)) {
+            const companyName = sessUser.company || sessUser.companyName || sessUser.name || "Enterprise Brand";
+            const email = sessUser.email && !/^\d+$/.test(sessUser.email) ? sessUser.email : `${companyName.toLowerCase().replace(/[^a-z0-9]/g, "")}@creatorz.io`;
+            dynamicBrands.push({
+              id: sessUser.id || `br-sess-${email.replace(/[^a-zA-Z0-9]/g, "")}`,
+              name: companyName,
+              company: companyName,
+              representative: sessUser.representativeName || sessUser.name || "Brand Lead",
+              email: email,
+              role: "brand",
+              category: sessUser.category || "D2C Brand",
+              gstin: sessUser.gstin || "NOT PROVIDED",
+              govIdType: sessUser.govIdType || "Corporate PAN",
+              govIdNumber: sessUser.govIdNumber || "NOT PROVIDED",
+              budget: sessUser.monthlyBudget || "₹50k - ₹2,00,000",
+              objective: sessUser.objective || "UGC",
+              kycDoc: sessUser.kycDoc ? "uploaded_signatory_document.png" : null,
+              status: sessUser.is_verified || sessUser.verified ? "approved" : (sessUser.kyc_status === "flagged" ? "flagged" : "pending"),
+              submittedDate: "Active Brand Session",
+            });
+          }
+        } catch (e) {
+          console.error("Failed to parse auth session", e);
+        }
+      }
+
+      // Merge avoiding duplicate entries by company or email
+      setBrands((prev) => {
+        const map = new Map();
+        // Priority 1: Newly discovered dynamic/live brands
+        dynamicBrands.forEach((b) => {
+          const key = (b.company || b.email || b.id).toLowerCase().trim();
+          map.set(key, b);
+        });
+        // Priority 2: Initial pre-seeded brands
+        prev.forEach((b) => {
+          const key = (b.company || b.email || b.id).toLowerCase().trim();
+          if (!map.has(key)) {
+            map.set(key, b);
+          }
+        });
+        return Array.from(map.values());
+      });
     } catch (err) {
       console.error("Failed to load local brand registrations", err);
     }
@@ -215,37 +316,86 @@ export default function VerificationQueuePage() {
   ]);
 
   // Brand Approval Ops Action
-  const updateBrandStatus = (brandId, email, newStatus, message) => {
+  const updateBrandStatus = (brandId, brandEmail, brandCompany, newStatus, message) => {
     setBrands((prev) =>
-      prev.map((b) => (b.id === brandId ? { ...b, status: newStatus } : b))
+      prev.map((b) => 
+        (b.id === brandId || (brandCompany && b.company?.toLowerCase() === brandCompany?.toLowerCase()) || (brandEmail && b.email?.toLowerCase() === brandEmail?.toLowerCase()))
+          ? { ...b, status: newStatus } 
+          : b
+      )
     );
 
     try {
       const isApproved = newStatus === "approved";
-      // Update creatorz_users_registry
-      const regStr = localStorage.getItem("creatorz_users_registry");
-      if (regStr) {
-        const registry = JSON.parse(regStr);
-        if (registry[email]) {
-          registry[email].is_verified = isApproved;
-          registry[email].verified = isApproved;
-          registry[email].kyc_status = isApproved ? "verified" : (newStatus === "flagged" ? "flagged" : "pending_review");
-          localStorage.setItem("creatorz_users_registry", JSON.stringify(registry));
+      const normEmail = (brandEmail || "").toLowerCase().trim();
+      const normComp = (brandCompany || "").toLowerCase().trim();
+
+      // 1. Update creatorz_brand_verifications
+      const qStr = localStorage.getItem("creatorz_brand_verifications");
+      if (qStr) {
+        let queue = JSON.parse(qStr);
+        if (Array.isArray(queue)) {
+          queue = queue.map((b) => {
+            if (
+              (b.email && b.email.toLowerCase().trim() === normEmail) ||
+              (b.company && b.company.toLowerCase().trim() === normComp) ||
+              b.id === brandId
+            ) {
+              return {
+                ...b,
+                status: newStatus,
+                is_verified: isApproved,
+                verified: isApproved,
+                kyc_status: isApproved ? "verified" : (newStatus === "flagged" ? "flagged" : "pending_review"),
+              };
+            }
+            return b;
+          });
+          localStorage.setItem("creatorz_brand_verifications", JSON.stringify(queue));
         }
       }
 
-      // If active session matches this brand, update it immediately
+      // 2. Update creatorz_users_registry
+      const regStr = localStorage.getItem("creatorz_users_registry");
+      if (regStr) {
+        let registry = JSON.parse(regStr);
+        const regArray = Array.isArray(registry) ? registry : Object.values(registry);
+        const updatedReg = regArray.map((u) => {
+          if (
+            (u.email && u.email.toLowerCase().trim() === normEmail) ||
+            (u.company && u.company.toLowerCase().trim() === normComp) ||
+            u.id === brandId
+          ) {
+            return {
+              ...u,
+              is_verified: isApproved,
+              verified: isApproved,
+              kyc_status: isApproved ? "verified" : (newStatus === "flagged" ? "flagged" : "pending_review"),
+            };
+          }
+          return u;
+        });
+        localStorage.setItem("creatorz_users_registry", JSON.stringify(updatedReg));
+      }
+
+      // 3. If active session matches this brand, update it immediately
       const sessStr = localStorage.getItem("creatorz_auth_session");
       if (sessStr) {
         const session = JSON.parse(sessStr);
-        if (session.user && session.user.email?.toLowerCase() === email?.toLowerCase()) {
-          session.user.is_verified = isApproved;
-          session.user.verified = isApproved;
-          session.user.kyc_status = isApproved ? "verified" : (newStatus === "flagged" ? "flagged" : "pending_review");
-          localStorage.setItem("creatorz_auth_session", JSON.stringify(session));
-          window.dispatchEvent(new Event("storage"));
+        const sessUser = session.user || session;
+        if (
+          (sessUser.email && sessUser.email.toLowerCase().trim() === normEmail) ||
+          (sessUser.company && sessUser.company.toLowerCase().trim() === normComp) ||
+          sessUser.id === brandId
+        ) {
+          sessUser.is_verified = isApproved;
+          sessUser.verified = isApproved;
+          sessUser.kyc_status = isApproved ? "verified" : (newStatus === "flagged" ? "flagged" : "pending_review");
+          localStorage.setItem("creatorz_auth_session", JSON.stringify(session.user ? session : sessUser));
         }
       }
+
+      window.dispatchEvent(new Event("storage"));
     } catch (err) {
       console.error("Failed to persist brand verification status", err);
     }
@@ -407,121 +557,127 @@ export default function VerificationQueuePage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBrands.map((b) => (
-                    <tr key={b.id} className="hover:bg-[#FAF6EE]/50 transition-colors">
-                      
-                      {/* Brand Info */}
-                      <td className="px-6 py-4 font-sans">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-2xl bg-[#7A1C28] text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            {b.company.slice(0, 2).toUpperCase()}
+                  filteredBrands.map((b) => {
+                    const displayEmail = b.email && !/^\d+$/.test(b.email)
+                      ? b.email
+                      : `${(b.company || "brand").toLowerCase().replace(/[^a-z0-9]/g, "")}@creatorz.io`;
+
+                    return (
+                      <tr key={b.id || b.company} className="hover:bg-[#FAF6EE]/50 transition-colors">
+                        
+                        {/* Brand Info */}
+                        <td className="px-6 py-4 font-sans">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-2xl bg-[#7A1C28] text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                              {b.company.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <span className="font-bold text-[#181314] block text-xs capitalize">{b.company}</span>
+                              <span className="text-[11px] text-[#6C635B] font-mono">
+                                {b.representative} • {displayEmail}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-bold text-[#181314] block text-xs">{b.company}</span>
-                            <span className="text-[11px] text-[#6C635B] font-mono">
-                              {b.representative} • {b.email}
+                        </td>
+
+                        {/* GSTIN */}
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-mono font-bold text-[#181314]">
+                            {b.gstin}
+                          </span>
+                          <span className="block text-[10px] text-[#6C635B] font-sans">
+                            {b.gstin !== "NOT PROVIDED" ? "Verified via GST Portal" : "Exemption Declared"}
+                          </span>
+                        </td>
+
+                        {/* Signatory Proof & Document Modal Preview */}
+                        <td className="px-6 py-4 font-sans">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-[#181314] block">
+                              {b.govIdType}: <span className="font-mono text-[#7A1C28]">{b.govIdNumber}</span>
                             </span>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* GSTIN */}
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-mono font-bold text-[#181314]">
-                          {b.gstin}
-                        </span>
-                        <span className="block text-[10px] text-[#6C635B] font-sans">
-                          {b.gstin !== "NOT PROVIDED" ? "Verified via GST Portal" : "Exemption Declared"}
-                        </span>
-                      </td>
-
-                      {/* Signatory Proof & Document Modal Preview */}
-                      <td className="px-6 py-4 font-sans">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-[#181314] block">
-                            {b.govIdType}: <span className="font-mono text-[#7A1C28]">{b.govIdNumber}</span>
-                          </span>
-                        </div>
-                        {b.kycDoc ? (
-                          <button
-                            type="button"
-                            onClick={() => setDocPreviewModal(b)}
-                            className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#7A1C28] hover:underline font-bold font-mono cursor-pointer"
-                          >
-                            <FileText className="w-3 h-3" />
-                            <span>View Document Attachment</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-[#8C5D64] font-mono block mt-0.5">
-                            No physical doc uploaded
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Monthly Budget & Objective */}
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-[#166534]">
-                          {b.budget}
-                        </span>
-                        <span className="block text-[10px] text-[#6C635B] font-sans">
-                          {b.objective}
-                        </span>
-                      </td>
-
-                      {/* KYC Status */}
-                      <td className="px-6 py-4">
-                        {b.status === "approved" ? (
-                          <span className="text-[10px] font-mono font-bold text-[#166534] px-2.5 py-0.5 rounded-full bg-[#EBF7EE] border border-[#C6E7CE] inline-flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" />
-                            Verified Enterprise
-                          </span>
-                        ) : b.status === "flagged" ? (
-                          <span className="text-[10px] font-mono font-bold text-[#7A1C28] px-2.5 py-0.5 rounded-full bg-[#FAF6EE] border border-[#E8DEC8]">
-                            Needs Resubmission
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold text-[#9E7B35] px-2.5 py-0.5 rounded-full bg-[#FFFDF9] border border-[#DECDBE]">
-                            ⏳ Pending KYC Review
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Ops Actions */}
-                      <td className="px-6 py-4 text-right">
-                        {b.status === "approved" ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-[11px] text-[#166534] font-bold">✓ Active Enterprise</span>
+                          {b.kycDoc ? (
                             <button
                               type="button"
-                              onClick={() => updateBrandStatus(b.id, b.email, "flagged", `⚠ Revoked verification for ${b.company}`)}
-                              className="px-2.5 py-1 rounded-lg text-[10px] text-[#7A1C28] hover:bg-[#FAF6EE] border border-[#E8DEC8] transition cursor-pointer"
+                              onClick={() => setDocPreviewModal(b)}
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#7A1C28] hover:underline font-bold font-mono cursor-pointer"
                             >
-                              Revoke
+                              <FileText className="w-3 h-3" />
+                              <span>View Document Attachment</span>
                             </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => updateBrandStatus(b.id, b.email, "approved", `✓ Approved & Verified Enterprise: ${b.company}`)}
-                              className="px-3 py-1.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white text-[11px] font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Approve & Verify</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateBrandStatus(b.id, b.email, "flagged", `⚠ Flagged KYC for ${b.company}`)}
-                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#D8CEBD] text-[#7A1C28] text-[11px] font-bold transition-colors cursor-pointer"
-                            >
-                              Flag
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                          ) : (
+                            <span className="text-[10px] text-[#8C5D64] font-mono block mt-0.5">
+                              No physical doc uploaded
+                            </span>
+                          )}
+                        </td>
 
-                    </tr>
-                  ))
+                        {/* Monthly Budget & Objective */}
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-bold text-[#166534]">
+                            {b.budget}
+                          </span>
+                          <span className="block text-[10px] text-[#6C635B] font-sans">
+                            {b.objective}
+                          </span>
+                        </td>
+
+                        {/* KYC Status */}
+                        <td className="px-6 py-4">
+                          {b.status === "approved" ? (
+                            <span className="text-[10px] font-mono font-bold text-[#166534] px-2.5 py-0.5 rounded-full bg-[#EBF7EE] border border-[#C6E7CE] inline-flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified Enterprise
+                            </span>
+                          ) : b.status === "flagged" ? (
+                            <span className="text-[10px] font-mono font-bold text-[#7A1C28] px-2.5 py-0.5 rounded-full bg-[#FAF6EE] border border-[#E8DEC8]">
+                              Needs Resubmission
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono font-bold text-[#9E7B35] px-2.5 py-0.5 rounded-full bg-[#FFFDF9] border border-[#DECDBE]">
+                              ⏳ Pending KYC Review
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Ops Actions */}
+                        <td className="px-6 py-4 text-right">
+                          {b.status === "approved" ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-[11px] text-[#166534] font-bold">✓ Active Enterprise</span>
+                              <button
+                                type="button"
+                                onClick={() => updateBrandStatus(b.id, b.email, b.company, "flagged", `⚠ Revoked verification for ${b.company}`)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] text-[#7A1C28] hover:bg-[#FAF6EE] border border-[#E8DEC8] transition cursor-pointer"
+                              >
+                                Revoke
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateBrandStatus(b.id, b.email, b.company, "approved", `✓ Approved & Verified Enterprise: ${b.company}`)}
+                                className="px-3 py-1.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white text-[11px] font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Approve & Verify</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateBrandStatus(b.id, b.email, b.company, "flagged", `⚠ Flagged KYC for ${b.company}`)}
+                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6EE] border border-[#D8CEBD] text-[#7A1C28] text-[11px] font-bold transition-colors cursor-pointer"
+                              >
+                                Flag
+                              </button>
+                            </div>
+                          )}
+                        </td>
+
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -648,7 +804,7 @@ export default function VerificationQueuePage() {
               <div className="flex items-center gap-2.5">
                 <FileText className="w-5 h-5 text-[#7A1C28]" />
                 <div>
-                  <h3 className="text-base font-bold text-[#181314] font-heading">
+                  <h3 className="text-base font-bold text-[#181314] font-heading capitalize">
                     KYC Document Audit Preview
                   </h3>
                   <p className="text-xs text-[#6C635B]">
@@ -706,7 +862,7 @@ export default function VerificationQueuePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    updateBrandStatus(docPreviewModal.id, docPreviewModal.email, "approved", `✓ Approved & Verified Enterprise: ${docPreviewModal.company}`);
+                    updateBrandStatus(docPreviewModal.id, docPreviewModal.email, docPreviewModal.company, "approved", `✓ Approved & Verified Enterprise: ${docPreviewModal.company}`);
                     setDocPreviewModal(null);
                   }}
                   className="px-4 py-2 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"

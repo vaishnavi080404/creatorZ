@@ -43,7 +43,7 @@ export default function BrandDashboardPage() {
     }
   }, [authLoading, isAuthenticated, user, router]);
 
-  // Load custom briefs from localStorage
+  // Load custom briefs and sync brand user to verification queue
   useEffect(() => {
     try {
       const stored = localStorage.getItem("creatorz_custom_briefs");
@@ -53,7 +53,57 @@ export default function BrandDashboardPage() {
     } catch (e) {
       console.error("Failed to read custom briefs", e);
     }
-  }, []);
+
+    // Sync active brand to verification queue so admin queue never loses live registered brand
+    if (user && (user.role === "brand" || user.company || user.companyName)) {
+      try {
+        const storedQueue = localStorage.getItem("creatorz_brand_verifications");
+        let brandQueue = storedQueue ? JSON.parse(storedQueue) : [];
+        if (!Array.isArray(brandQueue)) brandQueue = Object.values(brandQueue);
+
+        const brandEmail = (user.email || "").toLowerCase().trim();
+        const brandCompany = user.company || user.companyName || "Enterprise Brand";
+        const brandRep = user.representativeName || user.name || "Brand Lead";
+
+        const brandEntry = {
+          id: user.id || `br-${Date.now()}`,
+          name: brandRep,
+          representative: brandRep,
+          company: brandCompany,
+          companyName: brandCompany,
+          email: user.email || `${brandCompany.toLowerCase().replace(/\s+/g, "")}@creatorz.io`,
+          role: "brand",
+          category: user.category || "D2C Brand",
+          budget: user.monthlyBudget || "₹50k - ₹2,00,000",
+          monthlyBudget: user.monthlyBudget || "₹50k - ₹2,00,000",
+          objective: user.objective || "UGC",
+          gstin: user.gstin || "NOT PROVIDED",
+          govIdType: user.govIdType || "Corporate PAN",
+          govIdNumber: user.govIdNumber || "NOT PROVIDED",
+          kycDoc: user.kycDoc ? "uploaded_signatory_document.png" : null,
+          status: user.is_verified || user.verified ? "approved" : (user.kyc_status === "flagged" ? "flagged" : "pending"),
+          kyc_status: user.is_verified || user.verified ? "verified" : (user.kyc_status || "pending_review"),
+          is_verified: Boolean(user.is_verified || user.verified),
+          verified: Boolean(user.is_verified || user.verified),
+          submittedDate: "Live Registered Account",
+          onboarding_completed: true,
+        };
+
+        const idx = brandQueue.findIndex(
+          (b) => (b.email || "").toLowerCase().trim() === brandEmail ||
+                 (b.company && b.company.toLowerCase().trim() === brandCompany.toLowerCase().trim())
+        );
+        if (idx >= 0) {
+          brandQueue[idx] = { ...brandQueue[idx], ...brandEntry };
+        } else {
+          brandQueue.unshift(brandEntry);
+        }
+        localStorage.setItem("creatorz_brand_verifications", JSON.stringify(brandQueue));
+      } catch (err) {
+        console.error("Failed to sync brand verification queue from dashboard", err);
+      }
+    }
+  }, [user]);
 
   // Compute Brand Briefs dynamically
   const brandBriefs = useMemo(() => {
