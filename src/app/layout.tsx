@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
+import { AuthProvider } from "@/context/AuthContext";
 
 const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
@@ -34,9 +35,11 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", sourceSerif.variable, inter.variable)}
     >
       <body className="min-h-full flex flex-col font-serif bg-[#faf3eb] text-[#66101b]">
-        <Navbar />
-        <div className="flex-1">{children}</div>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
